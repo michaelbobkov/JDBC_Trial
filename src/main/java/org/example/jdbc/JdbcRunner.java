@@ -2,12 +2,12 @@ package org.example.jdbc;
 
 import org.example.jdbc.utils.ConnectionManager;
 
-import java.sql.DriverManager;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 
 public class JdbcRunner {
     public static void main(String[] args) throws SQLException {
@@ -15,7 +15,7 @@ public class JdbcRunner {
                 SELECT * from flightrepo.public.ticket
                 """;
 
-        try (var connection = ConnectionManager.open();
+        try (var connection = ConnectionManager.get();
             var statement = connection.createStatement()) {
             var result = statement.executeQuery(sql);
             while (result.next()){
@@ -35,7 +35,7 @@ public class JdbcRunner {
                 SELECT * from flightrepo.public.ticket
                 where flight_id = %s;
                 """.formatted(flightId);
-        try(var connection = ConnectionManager.open();
+        try(var connection = ConnectionManager.get();
         var statement = connection.createStatement()){
             var result = statement.executeQuery(sql);
             while (result.next())
@@ -46,16 +46,16 @@ public class JdbcRunner {
     }
     public static List<Long> getFlightsBetween(LocalDateTime start, LocalDateTime end) {
         List<Long> flights = new ArrayList<>();
-        try (var connection = ConnectionManager.open()) {
+        try (var connection = ConnectionManager.get()) {
             String sql = """
                 SELECT * FROM flight
                 WHERE departure_time > ? and arrival_time < ?;
         """;
-            var statement = connection.prepareStatement(sql);
+            var prepareStatement = connection.prepareStatement(sql);
             // Set parameters using proper format
-            statement.setObject(1, start);
-            statement.setObject(2, end);
-            var result = statement.executeQuery();
+            prepareStatement.setObject(1, start);
+            prepareStatement.setObject(2, end);
+            var result = prepareStatement.executeQuery();
             while (result.next()) flights.add(result.getLong("flight_id"));
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -63,5 +63,13 @@ public class JdbcRunner {
         return flights;
     }
 
-
+    public static void checkMetaData() {
+        try (Connection connection = ConnectionManager.get()){
+            var metaData = connection.getMetaData();
+            var catalogs = metaData.getCatalogs();
+            while (catalogs.next()) System.out.println(catalogs.getString(1));
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
